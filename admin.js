@@ -25,12 +25,24 @@ if (!isConfigured) {
 }
 
 $('loginForm').addEventListener('submit', async event => {
-  event.preventDefault(); if (!supabase) return;
+  event.preventDefault();
+  if (!supabase) return setStatus('loginStatus', 'La configuración no se cargó. Actualiza la página e inténtalo otra vez.', 'error');
   const values = new FormData(event.currentTarget);
+  const submitButton = event.currentTarget.querySelector('button[type="submit"]');
   setStatus('loginStatus', 'Verificando acceso…');
-  const { data, error } = await supabase.auth.signInWithPassword({ email:values.get('email'), password:values.get('password') });
-  if (error || !data.user) return setStatus('loginStatus', 'No fue posible iniciar sesión. Revisa tus datos.', 'error');
-  await showApp(data.user);
+  submitButton.disabled = true;
+  try {
+    const { data, error } = await Promise.race([
+      supabase.auth.signInWithPassword({ email:values.get('email'), password:values.get('password') }),
+      new Promise((_, reject) => window.setTimeout(() => reject(new Error('timeout')), 15000))
+    ]);
+    if (error || !data.user) return setStatus('loginStatus', 'No fue posible iniciar sesión. Revisa tus datos.', 'error');
+    await showApp(data.user);
+  } catch (error) {
+    setStatus('loginStatus', 'No se pudo contactar el acceso. Revisa tu conexión y vuelve a intentarlo.', 'error');
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 $('signOut').addEventListener('click', async () => { if (!supabase) return; await supabase.auth.signOut(); $('appView').hidden = true; $('loginView').hidden = false; $('loginForm').reset(); });
