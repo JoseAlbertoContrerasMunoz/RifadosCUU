@@ -13,6 +13,10 @@ Para activarlo de forma segura:
 5. Copia la URL del proyecto y la **Publishable key** (nunca `service_role`) a `supabase-config.js`.
 6. Sube `index.html`, `admin.html`, `admin.css`, `admin.js`, `raffles-public.js`, `supabase-config.js` y tus archivos existentes al mismo directorio de Hostinger. **No subas la carpeta `supabase/`**: `setup.sql` es sólo para configurarla desde el panel de Supabase. Entra a `tudominio.com/admin.html`.
 
+### Actualización del panel profesional
+
+Para habilitar la sección **Métodos de pago** del nuevo panel, ejecuta una sola vez `supabase/admin-upgrade.sql` en **Supabase → SQL Editor**. Este archivo agrega únicamente la tabla de métodos de pago y sus reglas de seguridad; no borra ni modifica las rifas existentes.
+
 El login no se habilita hasta configurar Supabase. No publiques `setup.sql` ni datos bancarios en la página pública. La etapa de cobro y reserva automática sigue pendiente: sólo debe activarse cuando haya una pasarela de pago y validación del comprobante en un backend.
 
 ## 1. Qué archivo subir

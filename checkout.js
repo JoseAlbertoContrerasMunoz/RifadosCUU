@@ -44,6 +44,18 @@
     document.body.classList.toggle('modal-open', !!document.querySelector('.raffle-modal.open, .cart-panel.open'));
   });
   const money = value => new Intl.NumberFormat('es-MX', {style:'currency',currency:'MXN'}).format(value / 100);
+  const configuredMethods = async () => {
+    const config = window.RIFADOS_SUPABASE || {};
+    if (!config.url || !config.publishableKey) return [];
+    try {
+      const response = await fetch(`${config.url}/rest/v1/payment_methods?select=name,instructions&is_active=eq.true&order=sort_order.asc,created_at.asc`, {
+        headers: { apikey: config.publishableKey, Authorization: `Bearer ${config.publishableKey}` }
+      });
+      if (!response.ok) return [];
+      const methods = await response.json();
+      return Array.isArray(methods) ? methods : [];
+    } catch { return []; }
+  };
   window.openRaffleCheckout = async cart => {
     selection = cart; quote = null; receipt = null; requestId = null;
     get('paymentForm').reset();
@@ -61,7 +73,13 @@
     }));
     dialog.showModal(); document.body.classList.add('modal-open');
     const service = window.rifadosPaymentService;
-    if (!service) return;
+    if (!service) {
+      const methods = await configuredMethods();
+      if (selection !== cart || !dialog.open || !methods.length) return;
+      get('paymentInstructions').textContent = methods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
+      get('paymentStatus').textContent = 'Métodos de pago actualizados por el organizador. La recepción automática aún está pendiente de habilitar.';
+      return;
+    }
     try {
       const response = await service.quote({raffleId:cart.raffleId,tickets:cart.tickets});
       if (selection !== cart || !dialog.open) return;
