@@ -1,0 +1,31 @@
+.cart-panel{background:#fff;color:#151512;overflow-y:auto;overscroll-behavior:contain;visibility:hidden;width:min(100%,440px)}
+.cart-panel.open{visibility:visible}
+.cart-panel-head{background:#151512;color:#fff;margin:-28px -28px 0;padding:28px;border-bottom:2px solid #c99a2e}
+.cart-panel-head .pill{color:#e8b94a}
+.cart-item-title{display:block;overflow-wrap:anywhere}
+.cart-remove{background:none;border:0;text-decoration:underline;color:#70500a;padding:16px 0 0;cursor:pointer;font:inherit}
+.cart-total{display:flex;justify-content:space-between;padding:24px 0;border-bottom:1px solid #e5e1d9;font-size:1.1rem}
+.cart-note{padding-top:24px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.checkout-dialog{position:fixed;inset:0;margin:auto;width:min(1040px,calc(100% - 28px));max-height:calc(100dvh - 28px);padding:0;border:1px solid #c99a2e;border-radius:24px;background:#faf9f6;color:#151512;box-shadow:0 24px 90px #0006;overflow:auto;overscroll-behavior:contain}
+.checkout-dialog::backdrop{background:#0009}
+.checkout-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:24px 30px;background:#151512;color:white;border-bottom:2px solid #c99a2e}
+.checkout-head small{color:#e8b94a;letter-spacing:.1em;text-transform:uppercase}
+.checkout-head h2{font-size:1.6rem;margin-top:6px}
+.checkout-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);gap:26px;padding:28px}
+.checkout-block{padding:22px;background:white;border:1px solid #e5e1d9;border-radius:16px;margin-bottom:18px}
+.checkout-block h3{font-size:1.05rem;margin-bottom:16px}
+.checkout-block label{display:block;font-size:.88rem;font-weight:600;margin-top:14px}
+.checkout-block input{width:100%;padding:12px;border:1px solid #d6d1c7;border-radius:9px;font:inherit;background:white;margin-top:6px}
+.checkout-block input:focus{outline:2px solid #c99a2e;outline-offset:2px}
+.checkout-block p,.checkout-help{color:#655f55;font-size:.88rem;line-height:1.6}
+.checkout-summary{align-self:start;position:sticky;top:118px}
+.checkout-summary img{width:72px;height:72px;object-fit:cover;border-radius:12px;margin-bottom:12px}
+.checkout-summary strong{display:block;margin-bottom:12px}
+.checkout-tickets{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.checkout-tickets span{border:1px solid #decba0;background:#fff8e7;border-radius:6px;padding:4px 8px;font-size:.8rem}
+.checkout-price{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid #ddd6c8}
+.checkout-upload{border:1px dashed #c99a2e;padding:18px;border-radius:12px;background:#fffaf0}
+.checkout-status{margin-top:12px;font-size:.9rem;color:#70500a;overflow-wrap:anywhere}
+.checkout-dialog .btn{width:100%;justify-content:center}
+@media(max-width:700px){.checkout-layout{grid-template-columns:1fr;padding:16px;gap:0}.checkout-summary{position:static;grid-row:1}.checkout-head{padding:18px}.checkout-head h2{font-size:1.3rem}}

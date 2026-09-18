@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Administración · RifadosCUU</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><a href="index.html" class="brand">Rifados<span>CUU</span></a><p>Panel privado de organización</p></header>
+    <section id="setupNotice" class="notice" hidden><strong>Falta conectar la base de datos.</strong><span>Completa <code>supabase-config.js</code> con la URL y Publishable key de tu proyecto.</span></section>
+    <section id="loginView" class="auth-card">
+      <p class="eyebrow">ACCESO RESTRINGIDO</p><h1>Administrar rifas</h1>
+      <p>Entra con el correo y contraseña de una cuenta autorizada.</p>
+      <form id="loginForm"><label>Correo<input name="email" type="email" autocomplete="email" required></label><label>Contraseña<input name="password" type="password" autocomplete="current-password" required minlength="8"></label><button type="submit">Entrar al panel</button><p id="loginStatus" class="status" role="status"></p></form>
+      <a href="index.html">← Volver al sitio público</a>
+    </section>
+    <section id="appView" hidden>
+      <div class="dashboard-head"><div><p class="eyebrow">ORGANIZACIÓN</p><h1>Rifas</h1><p id="adminEmail"></p></div><button class="secondary" id="signOut" type="button">Cerrar sesión</button></div>
+      <div class="dashboard-grid">
+        <section class="panel form-panel"><h2>Nueva rifa</h2><p class="hint">Guarda como borrador hasta que toda la información esté lista.</p>
+          <form id="raffleForm">
+            <div class="two-cols"><label>Premio / título<input name="title" required maxlength="120" placeholder="Ej. Nintendo Switch 2"></label><label>Categoría<select name="category" required><option value="tecnologia">Tecnología</option><option value="videojuegos">Videojuegos</option><option value="autos">Autos</option><option value="motos">Motos</option><option value="hogar">Hogar</option><option value="ymas">Y más</option></select></label></div>
+            <div class="three-cols"><label>Precio por boleto (MXN)<input name="price" type="number" min="1" max="1000000" step="0.01" required></label><label>Total de boletos<input name="totalTickets" type="number" min="1" max="100000" required></label><label>Fecha del sorteo<input name="drawAt" type="datetime-local" required></label></div>
+            <label>Descripción<textarea name="description" rows="4" maxlength="800" required placeholder="Qué incluye el premio, dinámica y datos relevantes."></textarea></label>
+            <div class="two-cols"><label>Imagen del premio (opcional)<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label><label>Estado inicial<select name="status"><option value="draft">Borrador</option><option value="published">Publicada</option><option value="paused">Pausada</option></select></label></div>
+            <button id="saveRaffle" type="submit">Crear rifa y boletos</button><p id="raffleStatus" class="status" role="status"></p>
+          </form>
+        </section>
+        <section class="panel"><div class="list-head"><h2>Rifas registradas</h2><button class="secondary" id="refreshRaffles" type="button">Actualizar</button></div><div id="raffleList" class="raffle-list" aria-live="polite"></div></section>
+      </div>
+    </section>
+  </main>
+  <script src="supabase-config.js"></script>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
