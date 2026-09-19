@@ -75,9 +75,14 @@
     const service = window.rifadosPaymentService;
     if (!service) {
       const methods = await configuredMethods();
-      if (selection !== cart || !dialog.open || !methods.length) return;
-      get('paymentInstructions').textContent = methods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
-      get('paymentStatus').textContent = 'Métodos de pago actualizados por el organizador. La recepción automática aún está pendiente de habilitar.';
+      if (selection !== cart || !dialog.open) return;
+      const testMethods = [
+        { name:'Transferencia SPEI (prueba)', instructions:'PRUEBA: no deposites. Banco demo · CLABE 000 000 000000000000 · titular RifadosCUU Pruebas.' },
+        { name:'Depósito OXXO (prueba)', instructions:'PRUEBA: no deposites. Solicita una referencia demo al organizador.' }
+      ];
+      const visibleMethods = methods.length ? methods : testMethods;
+      get('paymentInstructions').textContent = visibleMethods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
+      get('paymentStatus').textContent = methods.length ? 'Métodos de pago actualizados por el organizador. La recepción automática aún está pendiente de habilitar.' : 'Estás viendo métodos de prueba; no realices ningún depósito.';
       return;
     }
     try {
