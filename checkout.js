@@ -94,7 +94,19 @@
       get('paymentInstructions').textContent = quote.instructions;
       get('paymentStatus').textContent = 'Adjunta el comprobante para enviar tu pedido a revisión.';
       get('submitPayment').disabled = !receipt;
-    } catch { get('paymentStatus').textContent = 'No fue posible confirmar disponibilidad e importe. Cierra y vuelve a intentarlo.'; }
+    } catch {
+      // Keep payment details visible when the secure quote service is temporarily unavailable.
+      // This lets participants see the organizer's instructions without pretending the ticket is reserved.
+      const methods = await configuredMethods();
+      const testMethods = [
+        { name:'Transferencia SPEI (prueba)', instructions:'PRUEBA: no deposites. Banco demo · CLABE 000 000 000000000000 · titular RifadosCUU Pruebas.' },
+        { name:'Depósito OXXO (prueba)', instructions:'PRUEBA: no deposites. Solicita una referencia demo al organizador.' }
+      ];
+      if (selection !== cart || !dialog.open) return;
+      const visibleMethods = methods.length ? methods : testMethods;
+      get('paymentInstructions').textContent = visibleMethods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
+      get('paymentStatus').textContent = 'No fue posible reservar el boleto ni calcular el importe. Las instrucciones mostradas son informativas; no hagas un pago hasta que el checkout esté habilitado.';
+    }
   };
   get('receiptFile').addEventListener('change', event => {
     receipt = null;
