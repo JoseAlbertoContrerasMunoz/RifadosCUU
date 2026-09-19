@@ -10,6 +10,12 @@ const statusText = { draft:'Borrador', published:'Publicada', paused:'Pausada', 
 const kindText = { transfer:'Transferencia', cash:'Efectivo', card:'Tarjeta', wallet:'Billetera digital', other:'Otro' };
 let supabase, raffles = [], payments = [], ticketStats = new Map(), activeUser;
 
+// Orders are injected here so existing deployments receive the review queue without a markup migration.
+const paymentsNav = document.querySelector('[data-view="payments"]');
+paymentsNav.insertAdjacentHTML('beforebegin', '<button class="nav-item" data-view="orders" type="button"><span class="nav-icon">✓</span>Pedidos <span id="orderNavCount" class="nav-count">0</span></button>');
+$('paymentsView').insertAdjacentHTML('beforebegin', '<section class="view" id="ordersView"><div class="section-bar"><div><p class="eyebrow">REVISIÓN</p><h2>Pedidos pendientes</h2><p class="section-description">Aprueba sólo después de verificar el comprobante. Rechazar libera los boletos.</p></div><button id="refreshOrders" class="small-button" type="button">↻ Actualizar</button></div><section class="panel table-panel"><div id="orderList" class="raffle-list" aria-live="polite"></div></section></section>');
+document.querySelector('#raffleForm .form-footer').insertAdjacentHTML('beforebegin', '<section id="raffleVideos" class="raffle-videos-editor" hidden><p class="hint"><strong>Transparencia después del sorteo.</strong> Estos videos se muestran públicamente y sólo se pueden adjuntar cuando la rifa está cerrada.</p><div class="form-two"><label>Video del live del ganador<input name="drawVideo" type="file" accept="video/mp4,video/webm,video/quicktime"></label><label>Video de entrega del premio<input name="deliveryVideo" type="file" accept="video/mp4,video/webm,video/quicktime"></label></div></section>');
+
 function setStatus(id, text = '', type = '') { const el = $(id); el.textContent = text; el.className = `status ${type}`; }
 function emptyState(title, note) { const el = document.createElement('div'); el.className = 'empty-state'; const strong = document.createElement('strong'); strong.textContent = title; const p = document.createElement('p'); p.textContent = note; el.append(strong,p); return el; }
 function setSync(text = 'Actualizado ahora') { $('syncStatus').textContent = text; }
@@ -54,11 +60,13 @@ $('cancelRaffleEdit').addEventListener('click', resetRaffleForm);
 $('cancelPaymentEdit').addEventListener('click', resetPaymentForm);
 $('refreshRaffles').addEventListener('click', loadDashboard);
 $('refreshPayments').addEventListener('click', loadPayments);
+$('refreshOrders').addEventListener('click', loadOrders);
+$('raffleForm').elements.status.addEventListener('change', updateVideoFields);
 
 function setView(view) {
   document.querySelectorAll('.view').forEach(el => el.classList.toggle('active', el.id === `${view}View`));
   document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === view));
-  const copy = { overview:['VISTA GENERAL','Buenos días, organizador'], raffles:['CATÁLOGO','Administración de rifas'], payments:['COBROS','Métodos de pago'] }[view];
+  const copy = { overview:['VISTA GENERAL','Buenos días, organizador'], raffles:['CATÁLOGO','Administración de rifas'], orders:['REVISIÓN','Pedidos pendientes'], payments:['COBROS','Métodos de pago'] }[view];
   $('viewKicker').textContent = copy[0]; $('viewTitle').textContent = copy[1];
 }
 
@@ -67,12 +75,30 @@ async function showApp(user) {
   $('adminEmail').textContent = user.email || '';
   $('adminName').textContent = (user.email || 'Organizador').split('@')[0];
   $('profileInitial').textContent = (user.email || 'R').charAt(0).toUpperCase();
-  await Promise.all([loadDashboard(), loadPayments()]);
+  await Promise.all([loadDashboard(), loadPayments(), loadOrders()]);
+}
+
+async function loadOrders() {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('orders').select('id,buyer_name,buyer_email,buyer_phone,total_cents,status,receipt_path,created_at,raffles(title)').order('created_at', { ascending:false });
+  const list = $('orderList');
+  if (error) { list.replaceChildren(emptyState('No fue posible cargar pedidos', 'Confirma que la migración de checkout y los permisos de administrador estén activos.')); return; }
+  const orders = data || [], pending = orders.filter(order => order.status === 'pending_review');
+  $('orderNavCount').textContent = String(pending.length);
+  if (!orders.length) { list.replaceChildren(emptyState('Aún no hay pedidos', 'Los comprobantes recibidos aparecerán aquí para su revisión.')); return; }
+  list.replaceChildren(...orders.map(order => {
+    const row = document.createElement('article'); row.className='raffle-row';
+    const info = document.createElement('div'); const title=document.createElement('h3'); title.textContent=`${order.raffles?.title || 'Rifa'} · ${money(order.total_cents)}`; const meta=document.createElement('p'); meta.className='raffle-meta'; meta.textContent=`${order.buyer_name} · ${order.buyer_email} · ${order.buyer_phone} · ${dateLabel(order.created_at)}`; info.append(title,meta);
+    const actions=document.createElement('div'); actions.className='row-actions'; const badge=document.createElement('span'); badge.className=`badge ${order.status === 'approved' ? 'published' : order.status === 'rejected' ? 'closed' : 'draft'}`; badge.textContent=order.status === 'pending_review' ? 'Pendiente' : order.status === 'approved' ? 'Aprobado' : 'Rechazado'; actions.append(badge);
+    const receipt=document.createElement('button'); receipt.className='row-action'; receipt.type='button'; receipt.textContent='Ver comprobante'; receipt.onclick=async()=>{ const {data:signed,error:signedError}=await supabase.storage.from('payment-receipts').createSignedUrl(order.receipt_path,60); if(signedError||!signed?.signedUrl) return alert('No se pudo abrir el comprobante.'); window.open(signed.signedUrl,'_blank','noopener'); }; actions.append(receipt);
+    if(order.status === 'pending_review') ['approved','rejected'].forEach(status => { const button=document.createElement('button'); button.className='row-action'; button.type='button'; button.textContent=status === 'approved' ? 'Aprobar' : 'Rechazar'; button.onclick=async()=>{ if(!confirm(`${status === 'approved' ? '¿Aprobar' : '¿Rechazar'} este pedido?`)) return; const {error:reviewError}=await supabase.rpc('review_order',{p_order_id:order.id,p_status:status,p_note:null}); if(reviewError) return alert('No fue posible actualizar el pedido.'); await Promise.all([loadOrders(),loadDashboard()]); }; actions.append(button); });
+    row.append(info,actions); return row;
+  }));
 }
 
 async function loadDashboard() {
   if (!supabase) return; setSync('Actualizando…');
-  const { data, error } = await supabase.from('raffles').select('id,title,category,description,price_cents,total_tickets,draw_at,status,image_path,created_at').order('created_at', { ascending:false });
+  const { data, error } = await supabase.from('raffles').select('id,title,category,description,price_cents,total_tickets,draw_at,status,image_path,draw_video_path,delivery_video_path,created_at').order('created_at', { ascending:false });
   if (error) {
     $('raffleList').replaceChildren(emptyState('No fue posible cargar rifas', 'Confirma que esta cuenta esté registrada como administrador.'));
     $('raffleListSummary').textContent = 'Acceso pendiente'; setSync('Revisa permisos'); return;
@@ -125,15 +151,17 @@ function renderRaffles() {
 
 function resetRaffleForm() {
   const form = $('raffleForm'); form.reset(); $('raffleId').value = ''; form.elements.totalTickets.disabled = false;
-  $('raffleFormKicker').textContent = 'NUEVA RIFA'; $('raffleFormTitle').textContent = 'Crea una rifa'; $('saveRaffle').textContent = 'Crear rifa y boletos'; $('cancelRaffleEdit').hidden = true; setStatus('raffleStatus');
+  $('raffleFormKicker').textContent = 'NUEVA RIFA'; $('raffleFormTitle').textContent = 'Crea una rifa'; $('saveRaffle').textContent = 'Crear rifa y boletos'; $('cancelRaffleEdit').hidden = true; setStatus('raffleStatus'); updateVideoFields();
   $('raffleEditor').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function editRaffle(id) {
   const raffle = raffles.find(item => item.id === id); if (!raffle) return; setView('raffles'); const form = $('raffleForm');
   $('raffleId').value = raffle.id; form.elements.title.value = raffle.title; form.elements.category.value = raffle.category; form.elements.price.value = (raffle.price_cents / 100).toFixed(2); form.elements.totalTickets.value = raffle.total_tickets; form.elements.totalTickets.disabled = true; form.elements.drawAt.value = dateTimeLocal(raffle.draw_at); form.elements.description.value = raffle.description; form.elements.status.value = raffle.status;
-  $('raffleFormKicker').textContent = 'EDITANDO RIFA'; $('raffleFormTitle').textContent = raffle.title; $('saveRaffle').textContent = 'Guardar cambios'; $('cancelRaffleEdit').hidden = false; setStatus('raffleStatus', 'El total de boletos no se modifica después de crearlo.'); $('raffleEditor').scrollIntoView({ behavior:'smooth', block:'start' });
+  $('raffleFormKicker').textContent = 'EDITANDO RIFA'; $('raffleFormTitle').textContent = raffle.title; $('saveRaffle').textContent = 'Guardar cambios'; $('cancelRaffleEdit').hidden = false; setStatus('raffleStatus', 'El total de boletos no se modifica después de crearlo.'); updateVideoFields(); $('raffleEditor').scrollIntoView({ behavior:'smooth', block:'start' });
 }
+
+function updateVideoFields() { const form=$('raffleForm'); $('raffleVideos').hidden=!(form.elements.id.value && form.elements.status.value === 'closed'); }
 
 async function updateRaffleStatus(raffle, status) {
   const { error } = await supabase.from('raffles').update({ status }).eq('id', raffle.id); if (error) return alert('No se pudo modificar el estado.'); await loadDashboard();
@@ -147,7 +175,7 @@ $('raffleForm').addEventListener('submit', async event => {
     const image = form.get('image');
     if (image && image.size) { if (!['image/jpeg','image/png','image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024) throw new Error('Usa una imagen JPG, PNG o WEBP de máximo 5 MB.'); imagePath = `raffles/${crypto.randomUUID()}.${image.name.split('.').pop().toLowerCase()}`; const { error } = await supabase.storage.from('raffle-images').upload(imagePath,image,{contentType:image.type,upsert:false}); if (error) throw new Error('No pudimos subir la imagen. Crea primero el bucket raffle-images en Storage.'); }
     const payload = { title, category:form.get('category'), description:String(form.get('description')).trim(), price_cents:priceCents, draw_at:new Date(String(form.get('drawAt'))).toISOString(), status:form.get('status') }; if (imagePath) payload.image_path = imagePath;
-    if (id) { const { error } = await supabase.from('raffles').update(payload).eq('id',id); if (error) throw error; setStatus('raffleStatus','Cambios guardados.','ok'); }
+    if (id) { for (const [field,column,label] of [['drawVideo','draw_video_path','live'],['deliveryVideo','delivery_video_path','entrega']]) { const video=form.get(field); if (!video || !video.size) continue; if (!['video/mp4','video/webm','video/quicktime'].includes(video.type) || video.size > 500*1024*1024) throw new Error('Cada video debe ser MP4, WEBM o MOV de máximo 500 MB.'); const ext=video.name.split('.').pop().toLowerCase(), path=`raffles/${id}/${label}-${crypto.randomUUID()}.${ext}`; const {error:videoError}=await supabase.storage.from('raffle-videos').upload(path,video,{contentType:video.type,upsert:false}); if(videoError) throw new Error('No pudimos subir el video. Confirma que la migración de videos está activa.'); payload[column]=path; } const { error } = await supabase.from('raffles').update(payload).eq('id',id); if (error) throw error; setStatus('raffleStatus','Cambios y videos guardados.','ok'); }
     else { payload.total_tickets = totalTickets; const { data:raffle, error } = await supabase.from('raffles').insert(payload).select('id').single(); if (error) throw error; for (let start=1; start<=totalTickets; start+=500) { const tickets = Array.from({length:Math.min(500,totalTickets-start+1)},(_,index)=>({raffle_id:raffle.id,ticket_number:start+index,status:'available'})); const { error:ticketsError } = await supabase.from('tickets').insert(tickets); if (ticketsError) throw ticketsError; } setStatus('raffleStatus','Rifa creada correctamente.','ok'); }
     await loadDashboard(); if (!id) resetRaffleForm();
   } catch (error) { setStatus('raffleStatus', error.message || 'No fue posible guardar la rifa.', 'error'); } finally { button.disabled = false; }

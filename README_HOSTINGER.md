@@ -19,6 +19,12 @@ Para habilitar la sección **Métodos de pago** del nuevo panel, ejecuta una sol
 
 El login no se habilita hasta configurar Supabase. No publiques `setup.sql` ni datos bancarios en la página pública. La etapa de cobro y reserva automática sigue pendiente: sólo debe activarse cuando haya una pasarela de pago y validación del comprobante en un backend.
 
+### Checkout seguro (versión actual)
+
+El backend ya está versionado en `supabase/`. Antes de publicar el sitio, vincula el proyecto y ejecuta la migración con la CLI de Supabase, después despliega la función `checkout`. Configura el secreto `ALLOWED_ORIGINS` con los orígenes exactos permitidos, separados por comas (por ejemplo `https://tudominio.com,https://www.tudominio.com`). La función usa la clave de servicio sólo dentro de Supabase; jamás la copies a `supabase-config.js`.
+
+La migración crea el bucket privado `payment-receipts`, reserva los números durante 15 minutos, guarda el pedido de forma idempotente y añade al panel la revisión de comprobantes. Para dar acceso al primer organizador, crea primero el usuario en Supabase Auth y luego inserta su UUID en `public.admins` desde SQL Editor. Las rifas de ejemplo quedaron ocultas: crea y publica una rifa real desde `admin.html`.
+
 ## 1. Qué archivo subir
 
 Con esta versión basta con **un solo archivo: `index.html`**. Tu logo (en el menú, la portada, el pie de página) y el ícono de la pestaña del navegador ya están incrustados dentro del propio archivo, así que se ven aunque subas nada más ese archivo, lo abras localmente en tu computadora, o lo mandes por WhatsApp o correo — no dependen de ninguna carpeta aparte.
