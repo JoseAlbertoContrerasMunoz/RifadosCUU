@@ -7,7 +7,7 @@ if (validConfig) loadPublishedRaffles();
 async function loadPublishedRaffles() {
   const supabase = createClient(config.url, config.publishableKey);
   const { data: raffles, error } = await supabase.from('raffles')
-    .select('id,title,category,description,price_cents,total_tickets,draw_at,image_path,status,draw_video_path,delivery_video_path')
+    .select('id,title,category,description,price_cents,total_tickets,draw_at,ends_when_sold_out,image_path,status,draw_video_path,delivery_video_path')
     .eq('status', 'published').order('created_at', { ascending: false });
   if (error || !raffles?.length) return;
   const grid = document.getElementById('catalogGrid');
@@ -18,14 +18,14 @@ async function loadPublishedRaffles() {
 function buildCard(raffle, supabase) {
   const card = document.createElement('article');
   card.className = 'raffle-card'; card.dataset.category = raffle.category; card.dataset.name = raffle.title.toLowerCase();
-  const imageUrl = raffle.image_path ? supabase.storage.from('raffle-images').getPublicUrl(raffle.image_path).data.publicUrl : 'assets/nintendo-switch-2-rifa.png';
-  const draw = new Date(raffle.draw_at).toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' });
+  const imageUrl = raffle.image_path ? supabase.storage.from('raffle-images').getPublicUrl(raffle.image_path).data.publicUrl : 'assets/rifadoscuu-logo.png';
+  const draw = raffle.ends_when_sold_out ? 'Hasta agotar boletos' : new Date(raffle.draw_at).toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' });
   const price = new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:2}).format(raffle.price_cents / 100);
   card.innerHTML = `<div class="raffle-visual"><img alt="" loading="lazy"></div><div class="raffle-info"><span class="status live">En vivo</span><h3></h3><p></p><div class="raffle-meta"><span></span><span></span></div><div class="raffle-price"><strong></strong><small> / boleto</small></div><button class="btn btn-wa btn-sm btn-block" type="button">Elegir boletos</button></div>`;
   card.querySelector('img').src = imageUrl; card.querySelector('img').alt = raffle.title;
   card.querySelector('h3').textContent = raffle.title; card.querySelector('p').textContent = raffle.description;
   card.querySelectorAll('.raffle-meta span')[0].textContent = `${raffle.total_tickets} boletos`;
-  card.querySelectorAll('.raffle-meta span')[1].textContent = `Sorteo: ${draw}`;
+  card.querySelectorAll('.raffle-meta span')[1].textContent = raffle.ends_when_sold_out ? draw : `Sorteo: ${draw}`;
   card.querySelector('.raffle-price strong').textContent = price;
   card.querySelector('button').addEventListener('click', () => openRaffle(raffle, imageUrl, supabase));
   const videos = [

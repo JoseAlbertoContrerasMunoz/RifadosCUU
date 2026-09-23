@@ -3,7 +3,8 @@
   const config = window.RIFADOS_SUPABASE || {};
   const request = async body => {
     const form = body instanceof FormData;
-    const response = await fetch(`${config.url}/functions/v1/checkout`, { method:'POST', headers: form ? { apikey:config.publishableKey } : { apikey:config.publishableKey, 'Content-Type':'application/json' }, body:form ? body : JSON.stringify(body) });
+    if (!/^https:\/\/.+\.supabase\.co$/i.test(config.url || '') || !config.publishableKey) throw new Error('checkout_not_configured');
+    const response = await fetch(`${config.url}/functions/v1/checkout`, { method:'POST', credentials:'omit', headers: form ? { apikey:config.publishableKey } : { apikey:config.publishableKey, 'Content-Type':'application/json' }, body:form ? body : JSON.stringify(body) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'checkout_failed');
     return result;

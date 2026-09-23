@@ -176,7 +176,20 @@ $('raffleForm').addEventListener('submit', async event => {
     if (image && image.size) { if (!['image/jpeg','image/png','image/webp'].includes(image.type) || image.size > 5 * 1024 * 1024) throw new Error('Usa una imagen JPG, PNG o WEBP de máximo 5 MB.'); imagePath = `raffles/${crypto.randomUUID()}.${image.name.split('.').pop().toLowerCase()}`; const { error } = await supabase.storage.from('raffle-images').upload(imagePath,image,{contentType:image.type,upsert:false}); if (error) throw new Error('No pudimos subir la imagen. Crea primero el bucket raffle-images en Storage.'); }
     const payload = { title, category:form.get('category'), description:String(form.get('description')).trim(), price_cents:priceCents, draw_at:new Date(String(form.get('drawAt'))).toISOString(), status:form.get('status') }; if (imagePath) payload.image_path = imagePath;
     if (id) { for (const [field,column,label] of [['drawVideo','draw_video_path','live'],['deliveryVideo','delivery_video_path','entrega']]) { const video=form.get(field); if (!video || !video.size) continue; if (!['video/mp4','video/webm','video/quicktime'].includes(video.type) || video.size > 500*1024*1024) throw new Error('Cada video debe ser MP4, WEBM o MOV de máximo 500 MB.'); const ext=video.name.split('.').pop().toLowerCase(), path=`raffles/${id}/${label}-${crypto.randomUUID()}.${ext}`; const {error:videoError}=await supabase.storage.from('raffle-videos').upload(path,video,{contentType:video.type,upsert:false}); if(videoError) throw new Error('No pudimos subir el video. Confirma que la migración de videos está activa.'); payload[column]=path; } const { error } = await supabase.from('raffles').update(payload).eq('id',id); if (error) throw error; setStatus('raffleStatus','Cambios y videos guardados.','ok'); }
-    else { payload.total_tickets = totalTickets; const { data:raffle, error } = await supabase.from('raffles').insert(payload).select('id').single(); if (error) throw error; for (let start=1; start<=totalTickets; start+=500) { const tickets = Array.from({length:Math.min(500,totalTickets-start+1)},(_,index)=>({raffle_id:raffle.id,ticket_number:start+index,status:'available'})); const { error:ticketsError } = await supabase.from('tickets').insert(tickets); if (ticketsError) throw ticketsError; } setStatus('raffleStatus','Rifa creada correctamente.','ok'); }
+    else {
+      const { error } = await supabase.rpc('create_raffle_with_tickets', {
+        p_title: payload.title,
+        p_category: payload.category,
+        p_description: payload.description,
+        p_price_cents: payload.price_cents,
+        p_total_tickets: totalTickets,
+        p_draw_at: payload.draw_at,
+        p_status: payload.status,
+        p_image_path: payload.image_path || null
+      });
+      if (error) throw error;
+      setStatus('raffleStatus','Rifa creada correctamente.','ok');
+    }
     await loadDashboard(); if (!id) resetRaffleForm();
   } catch (error) { setStatus('raffleStatus', error.message || 'No fue posible guardar la rifa.', 'error'); } finally { button.disabled = false; }
 });

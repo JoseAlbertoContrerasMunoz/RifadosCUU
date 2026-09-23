@@ -44,18 +44,6 @@
     document.body.classList.toggle('modal-open', !!document.querySelector('.raffle-modal.open, .cart-panel.open'));
   });
   const money = value => new Intl.NumberFormat('es-MX', {style:'currency',currency:'MXN'}).format(value / 100);
-  const configuredMethods = async () => {
-    const config = window.RIFADOS_SUPABASE || {};
-    if (!config.url || !config.publishableKey) return [];
-    try {
-      const response = await fetch(`${config.url}/rest/v1/payment_methods?select=name,instructions&is_active=eq.true&order=sort_order.asc,created_at.asc`, {
-        headers: { apikey: config.publishableKey, Authorization: `Bearer ${config.publishableKey}` }
-      });
-      if (!response.ok) return [];
-      const methods = await response.json();
-      return Array.isArray(methods) ? methods : [];
-    } catch { return []; }
-  };
   window.openRaffleCheckout = async cart => {
     selection = cart; quote = null; receipt = null; requestId = null;
     get('paymentForm').reset();
@@ -74,15 +62,9 @@
     dialog.showModal(); document.body.classList.add('modal-open');
     const service = window.rifadosPaymentService;
     if (!service) {
-      const methods = await configuredMethods();
       if (selection !== cart || !dialog.open) return;
-      const testMethods = [
-        { name:'Transferencia SPEI (prueba)', instructions:'PRUEBA: no deposites. Banco demo · CLABE 000 000 000000000000 · titular RifadosCUU Pruebas.' },
-        { name:'Depósito OXXO (prueba)', instructions:'PRUEBA: no deposites. Solicita una referencia demo al organizador.' }
-      ];
-      const visibleMethods = methods.length ? methods : testMethods;
-      get('paymentInstructions').textContent = visibleMethods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
-      get('paymentStatus').textContent = methods.length ? 'Métodos de pago actualizados por el organizador. La recepción automática aún está pendiente de habilitar.' : 'Estás viendo métodos de prueba; no realices ningún depósito.';
+      get('paymentInstructions').textContent = 'El pago todavía no está disponible. No realices ningún depósito.';
+      get('paymentStatus').textContent = 'El checkout seguro no está configurado.';
       return;
     }
     try {
@@ -95,17 +77,9 @@
       get('paymentStatus').textContent = 'Adjunta el comprobante para enviar tu pedido a revisión.';
       get('submitPayment').disabled = !receipt;
     } catch {
-      // Keep payment details visible when the secure quote service is temporarily unavailable.
-      // This lets participants see the organizer's instructions without pretending the ticket is reserved.
-      const methods = await configuredMethods();
-      const testMethods = [
-        { name:'Transferencia SPEI (prueba)', instructions:'PRUEBA: no deposites. Banco demo · CLABE 000 000 000000000000 · titular RifadosCUU Pruebas.' },
-        { name:'Depósito OXXO (prueba)', instructions:'PRUEBA: no deposites. Solicita una referencia demo al organizador.' }
-      ];
       if (selection !== cart || !dialog.open) return;
-      const visibleMethods = methods.length ? methods : testMethods;
-      get('paymentInstructions').textContent = visibleMethods.map(method => `${method.name}: ${method.instructions}`).join(' · ');
-      get('paymentStatus').textContent = 'No fue posible reservar el boleto ni calcular el importe. Las instrucciones mostradas son informativas; no hagas un pago hasta que el checkout esté habilitado.';
+      get('paymentInstructions').textContent = 'No fue posible reservar los boletos. No realices ningún depósito.';
+      get('paymentStatus').textContent = 'Intenta de nuevo en unos minutos o contáctanos por WhatsApp.';
     }
   };
   get('receiptFile').addEventListener('change', event => {
